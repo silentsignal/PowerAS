@@ -1,0 +1,126 @@
+IBM i calling convention
+========================
+
+Based on LOOPY.PGM
+
+(Not proper Markdown, sorry)
+
+Prolog
+------
+
+### Save General Purpose Registers
+> std        r26,-0xd0(r1)
+> std        r27,-0xc8(r1)
+> stmd       r28,-0x30(r1)
+
+r1-d0     | r26 |
+r1-c8     | r27 |
+          | ... |
+r1-0x30   | r28 |
+r1-0x28   | r29 |
+r1-0x20   | r30 |
+r1-0x18   | r31 |
+          | ... |
+r1_old    |     |
+
+### Save Link Register
+> mfspr      r0,LR
+
+r0 = LR
+
+## Create stack frame
+> std        r0,0x28(r1)
+> stdu       r1,-0x120(r1)
+
+r1        |     |
+          | ... |
+r1+0x28   | r0  |
+
+r1 -= 0x120 (stdu r1, -0x120(r1))
+
+### Stack Layout After Prolog
+
+*TODO* I need my magic calculator for this :)
+
+Epilog
+------
+
+### Increment r1
+> addi       r1,r1,0x120
+
+r1 += 0x120
+
+### Restore r0
+> ld         r0,0x28(r1)
+
+*TODO*
+
+### Restore Link Register
+> mtspr      LR,r0
+
+LR = r0
+
+### Restore General Purpose Registers
+> lmd        r26,-0x34(r1)
+
+*TODO* saved regs vs old/new r1
+
+r1-d0     | r26 |
+r1-c8     | r27 |
+          | ... |
+r1-0x30   | r28 |
+r1-0x28   | r29 |
+r1-0x20   | r30 |
+r1-0x18   | r31 |
+          | ... |
+r1        |     |
+          | ... |
+r1+0x28   | r0  |
+
+Targeted testing (REPTILE)
+--------------------------
+
+alligator1():
+
+```
+int alligator1(int n, int m){
+    printf("First alligator is here!");
+    fflush(stdout);
+    return n+m;
+}
+```
+
+Internal parameter storage - param_1 and param_2 are stored in RAM to a r29-relative address (r29 comes from r3!):
+
+```
+      2f18409e3b0020c4 90 9d 00 20     stw        param_1,0x20(r29)
+                                                      $Udc00:8 = INT_ADD r29, 32:8
+                                                      STORE ram($Udc00:8), r4:4
+      2f18409e3b0020c8 90 bd 00 24     stw        param_2,0x24(r29)
+                                                      $Udc00:8 = INT_ADD r29, 36:8
+                                                      STORE ram($Udc00:8), r5:4
+```
+
+Addition - not the same r29-based offsets as used in the previous step:
+
+```
+      2f18409e3b00211c e9 5d 00 22     lwa        r10,0x20(r29)
+                                                      $Ue000:8 = INT_ADD 32:8, r29
+                                                      $U2c200:4 = LOAD ram($Ue000:8)
+                                                      r10 = INT_SEXT $U2c200:4
+      2f18409e3b002120 e9 1d 00 26     lwa        r8,0x24(r29)
+                                                      $Ue000:8 = INT_ADD 36:8, r29
+                                                      $U2c200:4 = LOAD ram($Ue000:8)
+                                                      r8 = INT_SEXT $U2c200:4
+      2f18409e3b002124 7d 2a 42 14     add        r9,r10,r8
+                                                      r9 = INT_ADD r10, r8
+```
+
+r9 ends up in r3 by the end of the function, so r3-based return seems valid.
+
+r3 is probably a "frame-pointer" pointing to some stack space usable by the callee.
+More precisely, r3 seems to hold the address for the stack based parameters on function entry. 
+
+r31 is used for local parameters
+
+r1 is used to pont to a piece of memory that can be used to save/restore registers on function prolog/epilog

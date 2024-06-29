@@ -1,0 +1,311 @@
+# @include "ppc_common.sinc"
+
+define pcodeop trapXER;
+define pcodeop unimplemented_ppcas;
+define pcodeop settag;
+define pcodeop systemcall;
+
+macro setGPR(r, val){
+
+}
+
+
+#settag 7C0103E6
+:settag is OP=31 & BIT_0=0 & BITS_1_10=499 & BITS_11_25=32 { 
+	settag(); # This helps with identifying pointer sets in decompiler 
+}
+
+#  "It functions like LQ, except the loaded value is zero if the tag bits weren't set. 
+#  See this 2009 patent, which includes an encoding diagram in the style of the Power ISA manual (but note that the bit offsets in the diagram are very patently wrong; this seems to be a typo"
+#      Patent link: https://patents.google.com/patent/US20090198967A1/en?q=ltptr&assignee=%22International+Business%22&oq=inassignee:%22International+Business%22+ltptr 
+# TODO This implementation is a ~copy-paste from LQ, the are probably bugs!
+# according to US20090198967A1 unlike LQ this one only loads EA+8 to RT, and only uses EA for type
+# checks to decide whether RT should be NULLd
+
+:ltptr RT,DQ(RA),EPT is OP=57 & BIT_0=1 & RA & DQ & RT & EPT{
+	 
+	ea:$(REGISTER_SIZE) = RA + sext(DQ:2 << 4);
+	#local pt:4;
+	#local qs:4;
+	#local res:4;
+	#if (EPT:2 == 0) goto <pt2>;
+	#if (EPT:2 == 1) goto <pt4>;
+	#if (EPT:2 == 2) goto <pt6>;
+	#if (EPT:2 == 3) goto <pt8>;
+	#<pt2>
+	#pt = 8;
+	#goto <endpt>;
+	#<pt4>
+	#pt = 4;
+	#goto <endpt>;
+	#<pt6>
+	#pt = 2;
+	#goto <endpt>;
+	#<pt8>
+	#pt = 1;
+	#<endpt>
+	#if (*:2(ea) == 0) goto <qs8>;
+	#if (*:2(ea) == 1) goto <qs4>;
+	#if (*:2(ea) == 2) goto <qs2>;
+	#if (*:2(ea) == 3) goto <qs1>;
+	#<qs8>
+	#qs = 8;
+	#goto <endqs>;
+	#<qs4>
+	#qs = 4;
+	#goto <endqs>;
+	#<qs2>
+	#qs = 2;
+	#goto <endqs>;
+	#<qs1>
+	#qs = 1;
+	#<endqs>
+	#res=qs & pt;
+	#if (res != 0) goto <null>;
+	RT = *:$(REGISTER_SIZE) (ea + $(REGISTER_SIZE));
+	#goto <end>;
+	#<null>
+	#RT=0;
+	#<end>
+}
+
+:txer BITS_21_25,BITS_11_20,BITS_7_10 is OP=31 & BITS_21_25 & BITS_11_20 & BITS_7_10 & MINOROP=36 {
+    trapXER(BITS_7_10:4+32);
+}
+
+# https://www.devever.net/~hl/ppcas
+# This is probably MDS-form actually, where the last bit is Rc (RECORD bit)
+:selii RS,RA,RB,XBI is OP=30 & (XOP_0_4=24 | XOP_0_4 =25) & RS & RA & RB & XBI {
+	unimplemented_ppcas();
+}
+:selir RS,RA,RB,XBI is OP=30 & (XOP_0_4=26 | XOP_0_4=27) & RS & RA & RB & XBI {
+	unimplemented_ppcas();
+}
+:seliri RS,RA,RB,XBI is OP=30 & (XOP_0_4=28 | XOP_0_4=29) & RS & RA & RB & XBI {
+	unimplemented_ppcas();
+}
+:selrr RS,RA,RB,XBI is OP=30 & (XOP_0_4=30 | XOP_0_4=31) & RS & RA & RB & XBI {
+	unimplemented_ppcas();
+}
+
+:stmd RS,SIMM_DS(A) is OP=62 & BITS_0_1=3 & RS & RSVAL & A & SIMM_DS {  
+	local addr:8 = sext(SIMM_DS:4 << 4) + A;
+	
+	if (RSVAL:1 == 0 ) goto <setmem0>;
+	if (RSVAL:1 == 1 ) goto <setmem1>;
+	if (RSVAL:1 == 2 ) goto <setmem2>;
+	if (RSVAL:1 == 3 ) goto <setmem3>;
+	if (RSVAL:1 == 4 ) goto <setmem4>;
+	if (RSVAL:1 == 5 ) goto <setmem5>;
+	if (RSVAL:1 == 6 ) goto <setmem6>;
+	if (RSVAL:1 == 7 ) goto <setmem7>;
+	if (RSVAL:1 == 8 ) goto <setmem8>;
+	if (RSVAL:1 == 9 ) goto <setmem9>;
+	if (RSVAL:1 == 10 ) goto <setmem10>;
+	if (RSVAL:1 == 11 ) goto <setmem11>;
+	if (RSVAL:1 == 12 ) goto <setmem12>;
+	if (RSVAL:1 == 13 ) goto <setmem13>;
+	if (RSVAL:1 == 14 ) goto <setmem14>;
+	if (RSVAL:1 == 15 ) goto <setmem15>;
+	if (RSVAL:1 == 16 ) goto <setmem16>;
+	if (RSVAL:1 == 17 ) goto <setmem17>;
+	if (RSVAL:1 == 18 ) goto <setmem18>;
+	if (RSVAL:1 == 19 ) goto <setmem19>;
+	if (RSVAL:1 == 20 ) goto <setmem20>;
+	if (RSVAL:1 == 21 ) goto <setmem21>;
+	if (RSVAL:1 == 22 ) goto <setmem22>;
+	if (RSVAL:1 == 23 ) goto <setmem23>;
+	if (RSVAL:1 == 24 ) goto <setmem24>;
+	if (RSVAL:1 == 25 ) goto <setmem25>;
+	if (RSVAL:1 == 26 ) goto <setmem26>;
+	if (RSVAL:1 == 27 ) goto <setmem27>;
+	if (RSVAL:1 == 28 ) goto <setmem28>;
+	if (RSVAL:1 == 29 ) goto <setmem29>;
+	if (RSVAL:1 == 30 ) goto <setmem30>;
+	if (RSVAL:1 == 31 ) goto <setmem31>;
+
+	<setmem0>
+	*:8(addr)=r0;addr = addr + 8;
+	<setmem1>
+	*:8(addr)=r1;addr = addr + 8;
+	<setmem2>
+    *:8(addr)=r2;addr = addr + 8;
+	<setmem3>
+    *:8(addr)=r3;addr = addr + 8;
+	<setmem4>
+    *:8(addr)=r4;addr = addr + 8;
+	<setmem5>
+    *:8(addr)=r5;addr = addr + 8;
+	<setmem6>
+    *:8(addr)=r6;addr = addr + 8;
+	<setmem7>
+    *:8(addr)=r7;addr = addr + 8;
+	<setmem8>
+    *:8(addr)=r8;addr = addr + 8;
+	<setmem9>
+    *:8(addr)=r9;addr = addr + 8;
+	<setmem10>
+    *:8(addr)=r10;addr = addr + 8;
+	<setmem11>
+    *:8(addr)=r11;addr = addr + 8;
+	<setmem12>
+    *:8(addr)=r12;addr = addr + 8;
+	<setmem13>
+    *:8(addr)=r13;addr = addr + 8;
+	<setmem14>
+    *:8(addr)=r14;addr = addr + 8;
+	<setmem15>
+    *:8(addr)=r15;addr = addr + 8;
+	<setmem16>
+    *:8(addr)=r16;addr = addr + 8;
+	<setmem17>
+    *:8(addr)=r17;addr = addr + 8;
+	<setmem18>
+    *:8(addr)=r18;addr = addr + 8;
+	<setmem19>
+    *:8(addr)=r19;addr = addr + 8;
+	<setmem20>
+    *:8(addr)=r20;addr = addr + 8;
+	<setmem21>
+    *:8(addr)=r21;addr = addr + 8;
+	<setmem22>
+    *:8(addr)=r22;addr = addr + 8;
+	<setmem23>
+    *:8(addr)=r23;addr = addr + 8;
+	<setmem24>
+    *:8(addr)=r24;addr = addr + 8;
+	<setmem25>
+    *:8(addr)=r25;addr = addr + 8;
+	<setmem26>
+    *:8(addr)=r26;addr = addr + 8;
+	<setmem27>
+    *:8(addr)=r27;addr = addr + 8;
+	<setmem28>
+    *:8(addr)=r28;addr = addr + 8;
+	<setmem29>
+    *:8(addr)=r29;addr = addr + 8;
+	<setmem30>
+    *:8(addr)=r30;addr = addr + 8;
+	<setmem31>
+    *:8(addr)=r31;addr = addr + 8;
+}
+
+:sc LEV is OP=17 & LEV & BIT_1=1 { 
+	systemcall();
+}
+:scv LEV is OP=17 & LEV & BIT_1=0 & BIT_0=1 { 
+	systemcall();
+}  
+# dPlusRaAddress: simm(A) is SIMM & A {tmp:8 = simm + A;export tmp;} 
+# OPF_PowerISA_v3.1B.pdf
+:lmw RT,SIMM(A) is $(NOTVLE) & RT & OP=58 & SIMM & A {
+	local value:8;
+	value = SIMM + A;
+	RT = *value;
+	 
+}
+
+# TODO is this disassembled as LMW on IBM i ???
+:lmd RT,SIMM_DS(A) is $(NOTVLE) & RT & RTVAL & OP=58 & SIMM_DS & A & BITS_0_1=3 {
+	# RT = RT + 1; # This sets register value not register index!
+	local addr:8 = SIMM_DS + A;
+	
+	if (RTVAL:1 == 0 ) goto <setreg0>;
+	if (RTVAL:1 == 1 ) goto <setreg1>;
+	if (RTVAL:1 == 2 ) goto <setreg2>;
+	if (RTVAL:1 == 3 ) goto <setreg3>;
+	if (RTVAL:1 == 4 ) goto <setreg4>;
+	if (RTVAL:1 == 5 ) goto <setreg5>;
+	if (RTVAL:1 == 6 ) goto <setreg6>;
+	if (RTVAL:1 == 7 ) goto <setreg7>;
+	if (RTVAL:1 == 8 ) goto <setreg8>;
+	if (RTVAL:1 == 9 ) goto <setreg9>;
+	if (RTVAL:1 == 10 ) goto <setreg10>;
+	if (RTVAL:1 == 11 ) goto <setreg11>;
+	if (RTVAL:1 == 12 ) goto <setreg12>;
+	if (RTVAL:1 == 13 ) goto <setreg13>;
+	if (RTVAL:1 == 14 ) goto <setreg14>;
+	if (RTVAL:1 == 15 ) goto <setreg15>;
+	if (RTVAL:1 == 16 ) goto <setreg16>;
+	if (RTVAL:1 == 17 ) goto <setreg17>;
+	if (RTVAL:1 == 18 ) goto <setreg18>;
+	if (RTVAL:1 == 19 ) goto <setreg19>;
+	if (RTVAL:1 == 20 ) goto <setreg20>;
+	if (RTVAL:1 == 21 ) goto <setreg21>;
+	if (RTVAL:1 == 22 ) goto <setreg22>;
+	if (RTVAL:1 == 23 ) goto <setreg23>;
+	if (RTVAL:1 == 24 ) goto <setreg24>;
+	if (RTVAL:1 == 25 ) goto <setreg25>;
+	if (RTVAL:1 == 26 ) goto <setreg26>;
+	if (RTVAL:1 == 27 ) goto <setreg27>;
+	if (RTVAL:1 == 28 ) goto <setreg28>;
+	if (RTVAL:1 == 29 ) goto <setreg29>;
+	if (RTVAL:1 == 30 ) goto <setreg30>;
+	if (RTVAL:1 == 31 ) goto <setreg31>;
+	
+	<setreg0>
+	r0 = *(addr); addr = addr + 8; 
+	<setreg1>
+	r1 = *(addr); addr = addr + 8; 
+	<setreg2>
+	r2 = *(addr); addr = addr + 8;
+    <setreg3>
+	r3 = *(addr); addr = addr + 8;                                                           
+	<setreg4>
+	r4 = *(addr); addr = addr + 8;                                                           
+	<setreg5>
+	r5 = *(addr); addr = addr + 8;                                                           
+	<setreg6>
+	r6 = *(addr); addr = addr + 8;                                                           
+	<setreg7>
+	r7 = *(addr); addr = addr + 8;                                                           
+	<setreg8>
+	r8 = *(addr); addr = addr + 8;                                                           
+	<setreg9>
+	r9 = *(addr); addr = addr + 8;                                                           
+	<setreg10>
+	r10 = *(addr); addr = addr + 8;                                                           
+	<setreg11>
+	r11 = *(addr); addr = addr + 8;
+	<setreg12>
+	r12 = *(addr); addr = addr + 8;
+	<setreg13>
+	r13 = *(addr); addr = addr + 8;
+	<setreg14>
+	r14 = *(addr); addr = addr + 8;
+	<setreg15>
+	r15 = *(addr); addr = addr + 8;
+	<setreg16>
+	r16 = *(addr); addr = addr + 8;
+	<setreg17>
+	r17 = *(addr); addr = addr + 8;
+	<setreg18>
+	r18 = *(addr); addr = addr + 8;
+	<setreg19>
+	r19 = *(addr); addr = addr + 8;
+	<setreg20>
+	r20 = *(addr); addr = addr + 8;
+	<setreg21>
+	r21 = *(addr); addr = addr + 8;
+	<setreg22>
+	r22 = *(addr); addr = addr + 8;
+	<setreg23>
+	r23 = *(addr); addr = addr + 8;
+	<setreg24>
+	r24 = *(addr); addr = addr + 8;
+	<setreg25>
+	r25 = *(addr); addr = addr + 8;
+	<setreg26>
+	r26 = *(addr); addr = addr + 8;
+	<setreg27>
+	r27 = *(addr); addr = addr + 8;
+	<setreg28>
+	r28 = *(addr); addr = addr + 8;
+	<setreg29>
+	r29 = *(addr); addr = addr + 8;
+	<setreg30>
+	r30 = *(addr); addr = addr + 8;
+	<setreg31>
+	r31 = *(addr); addr = addr + 8;
+	
+}
